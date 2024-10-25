@@ -13,7 +13,8 @@ label#worklog_section_label{
 .worklog-status-alert{
     @include flex-center;
     @include badge;
-    font-size: 0.875rem;
+    opacity: 0.9;
+    font-size: 0.7rem;
     margin-top: 1rem;
     margin-bottom: 0;
     border: 1px solid #dee2e6;  /* border with default color */

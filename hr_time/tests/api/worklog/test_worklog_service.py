@@ -66,7 +66,7 @@ class TestWorklogService(unittest.TestCase):
 
         # Assert
         self.assertEqual(result['status'], 'error')
-        self.assertEqual(result['message'], "Task description must not be empty")
+        self.assertEqual(result['message'], Messages.Worklog.EMPTY_TASK_DESC)
 
     @patch('hr_time.api.worklog.service.get_current_employee_id')
     @patch('hr_time.api.worklog.repository.WorklogRepository')
