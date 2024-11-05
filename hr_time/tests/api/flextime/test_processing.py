@@ -2,7 +2,7 @@ import datetime
 import unittest
 from unittest.mock import MagicMock, patch
 
-from hr_time.api.attendance.repository import AttendanceRepository, Attendance, LeaveType, Status
+from hr_time.api.attendance.repository import AttendanceRepository, Attendance, Status
 from hr_time.api.check_in.event import CheckinEvent
 from hr_time.api.check_in.list import CheckinList
 from hr_time.api.check_in.repository import CheckinRepository

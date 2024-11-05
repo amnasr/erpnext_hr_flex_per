@@ -164,7 +164,7 @@ export class EasyCheckinDialog {
         depends_on: `eval: doc.action === '${EasyCheckinDialog.ACTIONS.EOW}'`,
       },
       {
-        fieldname: "worklog_section",
+        fieldname: "worklog_section_label",
         fieldtype: "HTML",
       },
       {
@@ -172,7 +172,11 @@ export class EasyCheckinDialog {
         fieldtype: "Text",
         placeholder: __(EasyCheckinDialog.LABELS.PLACEHOLDER_WORKLOG_TASK_DESC),
         depends_on: `eval: doc.action === '${EasyCheckinDialog.ACTIONS.EOW}'`,
-      }
+      },
+      {
+        fieldname: "worklog_section_link_full_form",
+        fieldtype: "HTML",
+      },
     ];
   }
 
@@ -192,9 +196,9 @@ export class EasyCheckinDialog {
         this.dialogUI.$wrapper.find("label#worklog_section_label")
           .toggleClass("filled", this.hasWorklogs)
           .toggleClass("not-filled", !this.hasWorklogs);
-        this.dialogUI.$wrapper.find(".worklog-status-alert.alert-danger")
+        this.dialogUI.$wrapper.find(".worklog-status-alert.danger")
           .toggle(!this.hasWorklogs)
-        this.dialogUI.$wrapper.find(".worklog-status-alert.alert-success")
+        this.dialogUI.$wrapper.find(".worklog-status-alert.success")
           .toggle(this.hasWorklogs)
       })
       .catch((error) => {
@@ -213,21 +217,35 @@ export class EasyCheckinDialog {
     
     this.dialogUI.show();
     
-    // Fetch the worklog section's label HTML from the API
+    // Fetch the worklog section's label's template from the API
     frappe.call({
       method: "hr_time.api.worklog.api.render_worklog_header",
       callback: (response) => {
         if (response.message) {
-          const worklog_section = this.dialogUI.get_field("worklog_section");
-          if (worklog_section) {
-            // Set the rendered HTML to the worklog_section field
-            worklog_section.$wrapper.html(response.message);
-            this.dialogUI.$wrapper
-              .find(".edit-full-form-btn")
-              .click(() => frappe.new_doc("Worklog"));
-            this.updateDialogBasedOnAction(employee_id);
+          const worklog_section_label = this.dialogUI.get_field("worklog_section_label");
+          if (worklog_section_label) {
+            // Set the rendered HTML to the worklog_section_label field
+            worklog_section_label.$wrapper.html(response.message);
           }
         }
+
+        // Fetch the worklog section's link (to complete worklog form) template from the API
+        frappe.call({
+          method: "hr_time.api.worklog.api.render_worklog_full_form_link",
+          callback: (response) => {
+            if (response.message) {
+              const worklog_section_link = this.dialogUI.get_field("worklog_section_link_full_form");
+              if (worklog_section_link) {
+                // Set the rendered HTML to the worklog_section_link field
+                worklog_section_link.$wrapper.html(response.message);
+                this.dialogUI.$wrapper
+                  .find(".edit-full-form-btn")
+                  .click(() => frappe.new_doc("Worklog"));
+                this.updateDialogBasedOnAction(employee_id);
+              }
+            }
+          }
+        });
       }
     });
   }
@@ -288,14 +306,15 @@ export class EasyCheckinDialog {
    */
   submitCheckinAfterAddingWorklog(values, employee_id, worklog_text) {
     frappe.call({
-      method: "hr_time.api.worklog.api.create_worklog",
+      method: "hr_time.api.worklog.api.create_worklog_now",
       args: {
         employee_id: employee_id,
         worklog_text: worklog_text,
       },
       callback: (response) => {
-        if (response.message && typeof response.message === 'object') {
-          const { status, message: resMessage } = response.message;
+        if (response && typeof response === 'object' && response.message) {
+          const res = JSON.parse(response.message)
+          const { status, message: resMessage } = res;
 
           if(typeof status === 'string' && status !== "success"){
             FrappeUtils.alert_failure(resMessage);

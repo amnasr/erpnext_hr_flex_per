@@ -4,6 +4,7 @@ from hr_time.api.worklog.repository import WorklogRepository
 from hr_time.api.employee.api import get_current_employee_id
 from hr_time.api import logger
 from hr_time.api.shared.constants.messages import Messages
+from hr_time.api.shared.utils.response import Response
 
 
 class WorklogService:
@@ -50,7 +51,7 @@ class WorklogService:
         worklogs = self.worklog.get_worklogs_of_employee_on_date(employee_id, today)
         return len(worklogs) > 0
 
-    def create_worklog(self, employee_id=None, worklog_text='', task=None):
+    def create_worklog_now(self, employee_id=None, worklog_text='', task=None):
         """
         Creates a new worklog for an employee with the given description and optional task reference.
 
@@ -82,11 +83,11 @@ class WorklogService:
             return result
 
         except ValueError as ve:
-            # Handle specific ValueError
+            # Handle Empty Task description error
             logger.error(f"Validation error: {str(ve)}", Messages.Worklog.ERR_CREATE_WORKLOG)
-            return {'status': 'error', 'message': str(ve)}
+            return Response.error(str(ve))
 
         except Exception as e:
-            # Centralized error handling and logging
+            # General error handling
             logger.error(f"Error : {str(e)}", Messages.Worklog.ERR_CREATE_WORKLOG)
-            return {'status': 'error', 'message': str(e)}
+            return Response.error(str(e))

@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, time
+from datetime import datetime, time
 from typing import Optional, List
 import frappe
-from frappe import _
+from frappe import _, ValidationError
 from hr_time.api.shared.constants.messages import Messages
+from hr_time.api.shared.utils.response import Response
 
 
 class Worklog:
@@ -10,29 +11,28 @@ class Worklog:
     Represents a worklog entry for an employee, including details about the task and the time of work.
 
     Attributes:
-        employee_id (str): ID of the employee who created the worklog.
+        employee_id (str): ID of the Employee for whom the Worklog is to be created.
         log_time (datetime.datetime): The date and time the worklog refers to.
-        task_desc (str): A description of the task completed in the worklog.
+        task_desc (str): A description of the task done.
         task (Optional[str]): Optional reference to a specific task (TASK doctype) related to the worklog.
+        ticket_link (Optional[str]): Optional field to store (related) external ticket link.
     """
 
-    # ID of the Employee for whom the Worklog is to be created
     employee_id: str
-
-    # Log time for the task (includes both date and time)
     log_time: datetime
-
-    # Description of the task
     task_desc: str
-
-    # Optional task the log is associated to
     task: Optional[str]
+    ticket_link: Optional[str]
 
-    def __init__(self, employee_id: str, log_time: datetime, task_desc: str, task: Optional[str] = None):
+    def __init__(
+        self, employee_id: str, log_time: datetime, task_desc: str,
+        task: Optional[str] = None, ticket_link: Optional[str] = None
+    ):
         self.employee_id = employee_id
         self.log_time = log_time
         self.task_desc = task_desc
         self.task = task
+        self.ticket_link = ticket_link
 
 
 class WorklogRepository:
@@ -41,17 +41,23 @@ class WorklogRepository:
     Handles retrieval and creation of worklogs.
     """
 
-    _doc_fields = ["employee", "log_time", "task_desc", "task"]
+    _DOCTYPE_NAME = "Worklog"
+    _DOC_FIELDS = ["employee", "log_time", "task_desc", "task", "ticket_link"]
 
-    @property
-    def doc_fields(self) -> List[str]:
+    @staticmethod
+    def get_doctype_name() -> str:
+        """Returns the pre-defined DocType name."""
+        return WorklogRepository._DOCTYPE_NAME
+
+    @staticmethod
+    def get_doc_fields() -> List[str]:
         """
         Returns a copy of the document fields.
 
         Returns:
             List[str]: List of field names used in worklog documents.
         """
-        return self._doc_fields.copy()
+        return WorklogRepository._DOC_FIELDS.copy()
 
     def get_worklogs(self, filters: dict) -> List[dict]:
         """
@@ -63,7 +69,9 @@ class WorklogRepository:
         Returns:
             List[dict]: A list of worklog entries matching the given filters.
         """
-        return frappe.get_all("Worklog", fields=self._doc_fields, filters=filters)
+        return frappe.get_all(
+            WorklogRepository.get_doctype_name(), fields=WorklogRepository.get_doc_fields(), filters=filters
+        )
 
     def get_worklogs_of_employee_on_date(self, employee_id: str, date: datetime.date) -> List[Worklog]:
         """
@@ -79,7 +87,7 @@ class WorklogRepository:
         worklogs = []
         # Define the date filter to include the whole day (date_start to date_end)
         date_start = datetime.combine(date, time(0, 0, 0))
-        date_end = datetime.combine(date, time(23, 59, 59))
+        date_end = datetime.combine(date, time(23, 59, 59, 999999))
 
         # Fetch worklogs for the employee on the specific date (# Filter logtime by full day)
         docs = self.get_worklogs({"employee": employee_id, "log_time": ["between", [date_start, date_end]]})
@@ -93,7 +101,10 @@ class WorklogRepository:
         return worklogs
 
     @staticmethod
-    def create_worklog(employee_id: str, log_time: datetime, worklog_text: str, task=None) -> dict:
+    def create_worklog(
+        employee_id: str, log_time: datetime, worklog_text: str,
+        task: Optional[str] = None, ticket_link: Optional[str] = None
+    ) -> Response:
         """
         Creates a new worklog entry for an employee.
 
@@ -102,26 +113,43 @@ class WorklogRepository:
             log_time (datetime.datetime): The date and time the worklog refers to.
             worklog_text (str): The content or description of the worklog.
             task (Optional[str]): Optional reference to a specific task associated with the worklog.
+            ticket_link (Optional[str]): Optional field to store (related) external ticket link.
 
         Returns:
-            dict: A dictionary indicating the status of the operation, including a success or error message.
+            Response: A Response object indicating the status of the operation.
+                - If successful, the status will be 'success' with a success message.
+                - If an error occurs, the status will be 'error' with a corresponding error message.
+
 
         Raises:
-            Exception: If Worklog creation fails with error
+            ValidationError: If log_time is set in the future.
+            Exception: For other errors during Worklog creation.
         """
+
         try:
-            new_worklog = frappe.new_doc("Worklog")
+            if not worklog_text:
+                return Response.error(Messages.Worklog.EMPTY_TASK_DESC)
+
+            if log_time > datetime.now():
+                raise ValidationError(Messages.Worklog.ERR_CREATE_WORKLOG_FUTURE_TIME)
+
+            new_worklog = frappe.new_doc(WorklogRepository.get_doctype_name())
             new_worklog.employee = employee_id
             new_worklog.log_time = log_time
             new_worklog.task_desc = worklog_text
             new_worklog.task = task
+            new_worklog.ticket_link = ticket_link
             new_worklog.save()
 
-            return {'status': 'success', 'message': Messages.Worklog.SUCCESS_WORKLOG_CREATION}
+            return Response.success(Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+
+        except ValidationError as ve:
+            # Handle validation error of log time being in future
+            return Response.error(str(ve))
 
         except Exception as e:
             frappe.db.rollback()  # Rollback transaction in case of failure
-            raise e  # Raise the exception to be handled by the Worklog Service layer
+            return Response.error(str(e))
 
     @staticmethod
     def _build_from_doc(doc) -> Worklog:
@@ -138,5 +166,6 @@ class WorklogRepository:
             employee_id=doc['employee'],
             log_time=doc['log_time'],
             task_desc=doc['task_desc'],
-            task=doc['task']
+            task=doc['task'],
+            ticket_link=doc['ticket_link']
         )

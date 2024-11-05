@@ -2,8 +2,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 from hr_time.api.worklog.service import WorklogService
 from hr_time.api.worklog.repository import WorklogRepository
-from hr_time.api.employee.repository import EmployeeRepository
 from hr_time.api.shared.constants.messages import Messages
+from hr_time.api.shared.utils.response import Response
 
 
 class TestWorklogService(unittest.TestCase):
@@ -11,103 +11,93 @@ class TestWorklogService(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
+        # Arrange
+        self.DUMMY_EMP_ID = '001'
+        self.DUMMY_VALID_WORKLOG_TEXT = 'Completed task A'
+        self.DUMMY_INVALID_EMPTY_WORKLOG_TEXT = ''
+        self.DUMMY_TASK = 'TASK001'
         self.worklog_repository = MagicMock(spec=WorklogRepository)
         self.worklog_service = WorklogService(self.worklog_repository)
-        self.employee_repository = EmployeeRepository()
 
     def test_check_if_employee_has_worklogs_today_true(self):
         # Arrange
-        employee_id = '001'
         # Simulate worklogs for today
-        mock_worklogs = [{'id': '1', 'employee': employee_id}]
+        mock_worklogs = [{'id': '1', 'employee': self.DUMMY_EMP_ID}]
         self.worklog_repository.get_worklogs_of_employee_on_date.return_value = mock_worklogs
 
         # Act
-        result = self.worklog_service.check_if_employee_has_worklogs_today(employee_id)
+        result = self.worklog_service.check_if_employee_has_worklogs_today(self.DUMMY_EMP_ID)
 
         # Assert
         self.assertTrue(result)  # Should return True if there are worklogs
 
     def test_check_if_employee_has_worklogs_today_false(self):
         # Arrange
-        employee_id = '001'
         self.worklog_repository.get_worklogs_of_employee_on_date.return_value = []  # No worklogs
 
         # Act
-        result = self.worklog_service.check_if_employee_has_worklogs_today(employee_id)
+        result = self.worklog_service.check_if_employee_has_worklogs_today(self.DUMMY_EMP_ID)
 
         # Assert
         self.assertFalse(result)
 
     def test_create_worklog_success(self):
         # Arrange
-        employee_id = '001'
-        worklog_text = 'Completed task A'
-        task = 'TASK001'
-        expected_result = {'status': 'success', 'message': Messages.Worklog.SUCCESS_WORKLOG_CREATION}
+        expected_result = Response.success(Messages.Worklog.SUCCESS_WORKLOG_CREATION)
         self.worklog_repository.create_worklog.return_value = expected_result
 
         # Act
-        result = self.worklog_service.create_worklog(employee_id, worklog_text, task)
+        result = self.worklog_service.create_worklog_now(
+            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
 
         # Assert
-        self.assertEqual(result['status'], 'success')
-        self.assertEqual(result['message'], Messages.Worklog.SUCCESS_WORKLOG_CREATION)
-        self.worklog_repository.create_worklog.assert_called_once()  # Verify it was called
+        # Verify create_worklog was called
+        self.worklog_repository.create_worklog.assert_called_once()
+        self.assertEqual(result.status, Response.STATUS_SUCCESS)
+        self.assertEqual(result.message, Messages.Worklog.SUCCESS_WORKLOG_CREATION)
 
     def test_create_worklog_empty_description(self):
-        # Arrange
-        employee_id = '001'
-        worklog_text = ''  # Empty description
-        task = 'TASK001'
-
         # Act
-        result = self.worklog_service.create_worklog(employee_id, worklog_text, task)
+        result = self.worklog_service.create_worklog_now(
+            self.DUMMY_EMP_ID, self.DUMMY_INVALID_EMPTY_WORKLOG_TEXT, self.DUMMY_TASK)
 
         # Assert
-        self.assertEqual(result['status'], 'error')
-        self.assertEqual(result['message'], Messages.Worklog.EMPTY_TASK_DESC)
+        self.assertEqual(result.status, Response.STATUS_ERROR)
+        self.assertEqual(result.message, Messages.Worklog.EMPTY_TASK_DESC)
 
     @patch('hr_time.api.worklog.service.get_current_employee_id')
-    @patch('hr_time.api.worklog.repository.WorklogRepository')
-    def test_create_worklog_with_none_employee_id(self, MockWorklogRepository, MockGetCurrentEmployeeId):
+    def test_create_worklog_with_none_employee_id(self, mock_get_current_emp_id):
         # Arrange
-        mock_worklog_repo = MockWorklogRepository.return_value
-        MockGetCurrentEmployeeId.return_value = 'emp123'
-
-        # Mock the return value of WorklogRepository.create_worklog to simulate a successful creation
-        mock_worklog_repo.create_worklog.return_value = {
-            'status': 'success', 'message': Messages.Worklog.SUCCESS_WORKLOG_CREATION}
-
-        service = WorklogService(mock_worklog_repo)
-        worklog_text = "Worked on project X"
-        task = "task_001"
+        mock_get_current_emp_id.return_value = 'emp123'
+        # Mock the return value of create_worklog to simulate a successful creation
+        expected_result = Response.success(Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+        self.worklog_repository.create_worklog.return_value = expected_result
 
         # Act
-        result = service.create_worklog(employee_id=None, worklog_text=worklog_text, task=task)
+        result = self.worklog_service.create_worklog_now(
+            employee_id=None, worklog_text=self.DUMMY_VALID_WORKLOG_TEXT, task=self.DUMMY_TASK)
 
         # Assert
         # Verify that get_current_employee_id was called
-        MockGetCurrentEmployeeId.assert_called_once()
+        mock_get_current_emp_id.assert_called_once()
 
         # Check that create_worklog on repository was called with the correct parameters
         # i.e. (Current employee ID, ANY date, worklog_text, task)
-        mock_worklog_repo.create_worklog.assert_called_once_with('emp123', unittest.mock.ANY, worklog_text, task)
+        self.worklog_repository.create_worklog.assert_called_once_with(
+            'emp123', unittest.mock.ANY, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
 
         # Verify the result is as expected
-        self.assertEqual(result['status'], 'success')
-        self.assertEqual(result['message'], Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+        self.assertEqual(result.status, Response.STATUS_SUCCESS)
+        self.assertEqual(result.message, Messages.Worklog.SUCCESS_WORKLOG_CREATION)
 
     def test_create_worklog_general_exception(self):
         # Arrange
-        employee_id = '001'
-        worklog_text = 'Completed task B'
-        task = 'TASK002'
         self.worklog_repository.create_worklog.side_effect = Exception(Messages.Common.ERR_DB)
 
         # Act
-        result = self.worklog_service.create_worklog(employee_id, worklog_text, task)
+        result = self.worklog_service.create_worklog_now(
+            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
 
         # Assert
-        self.assertEqual(result['status'], 'error')
-        self.assertEqual(result['message'], Messages.Common.ERR_DB)
+        self.assertEqual(result.status, Response.STATUS_ERROR)
+        self.assertEqual(result.message, Messages.Common.ERR_DB)

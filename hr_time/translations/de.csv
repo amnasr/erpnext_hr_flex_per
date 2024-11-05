@@ -96,7 +96,8 @@ Unknown action provided,Aktion unbekannt
 Could not Checkout of work : You have no Worklogs today.,Abwesend der Arbeit nicht möglich : Sie haben heute noch keinen Arbeitsbericht.
 You have no Worklogs today : Task description must not be empty.,Sie haben heute noch keinen Arbeitsbericht : Die Aufgabenbeschreibung darf nicht leer sein.
 Describe your task here,Beschreiben Sie hier Ihre Aufgabe
-Ticket Link,Link zum Ticket
-No worklog entered for today.,Für heute wurde kein Arbeitsbericht eingegeben.
+External reference,Externe reference
+No worklog entered for today.,Für heute wurde noch kein Arbeitsbericht eingetragen.
 Worklog has already been entered for today.,Der Arbeitsbericht wurde bereits für heute eingegeben.
 The entered time cannot be in the future.,Der eingegebene Zeitpunkt kann nicht in der Zukunft liegen.
+e.g. link to a ticket in an external system,z.b. Link zu einem Ticket in einem externen System

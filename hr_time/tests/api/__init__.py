@@ -1,7 +1,9 @@
 import sys
-from types import SimpleNamespace
-from typing import Optional
 from unittest.mock import MagicMock
+
+"""
+Utility file to define mocked (fake) classses and methods of the framework for running tests.
+"""
 
 
 class FakeLogger:
@@ -31,19 +33,37 @@ class FakeUtils:
     logger = FakeLogger()
 
 
-class FakeDocument(SimpleNamespace):
-    """
-    A mock document class that mimics Frappe's document behavior, including the save() method.
-    """
+class FakeDocument:
+    def __init__(self, name, employee=None, task_desc=None, task=None):
+        self.name = name
+        self.employee = employee
+        self.task_desc = task_desc
+        self.task = task
 
     def save(self):
         # Simulate saving the document (do nothing or add custom logic if needed)
         return
 
 
+class FakeDocumentModel:
+    @staticmethod
+    def get_doc(doctype, docname):
+        # Return a mock document based on doctype and docname
+        if doctype == "ToDo":
+            return FakeDocument(name=docname, task_desc="Sample Todo Task")
+        elif doctype == "Worklog":
+            return FakeDocument(name=docname, employee="EMP001", task_desc="Sample Worklog Task")
+        raise ValueError(f"Unknown document: {doctype}, {docname}")
+
+
+class FakeModel:
+    document = FakeDocumentModel  # Add document class to simulate frappe.model.document
+
+
 class FakeFrappe(object):
     utils = FakeUtils()
     db = FakeDB()
+    model = FakeModel()
 
     class User:
         def __init__(self, email):
@@ -105,6 +125,12 @@ class FakeFrappe(object):
         raise AttributeError(f"Unknown doctype: {doctype}")
 
     @staticmethod
+    def get_doc(doctype: dict[str: str]):
+        if doctype['doctype'] == "Worklog":
+            return FakeDocument(name="NEW_WORKLOG", employee=None, task_desc=None, task=None)
+        raise AttributeError(f"Unknown doctype: {doctype}")
+
+    @staticmethod
     def get_hooks(hook_name):
         # Return a mock response for hooks
         # You can customize the return value based on the tests you're running
@@ -114,6 +140,9 @@ class FakeFrappe(object):
         }.get(hook_name, [])
 
     class DoesNotExistError(Exception):
+        pass
+
+    class ValidationError(Exception):
         pass
 
 

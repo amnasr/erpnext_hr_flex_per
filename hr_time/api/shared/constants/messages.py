@@ -7,7 +7,8 @@ class Messages:
         SUCCESS_WORKLOG_ADDITION = "Worklog added successfully."
         SUCCESS_WORKLOG_CREATION = "Worklog created successfully."
         ERR_GET_WORKLOG_STATUS = "Error fetching worklog status."
-        ERR_CREATE_WORKLOG = "Worklog Creation Error"
+        ERR_CREATE_WORKLOG = "Worklog Creation Error."
+        ERR_CREATE_WORKLOG_FUTURE_TIME = "The entered time cannot be in the future."
         EMPTY_TASK_DESC = "Task description must not be empty."
         EMPTY_TASK_DESC_WHEN_WORKLOGS = "You have no Worklogs today: Task description must not be empty."
 
@@ -23,4 +24,5 @@ class Messages:
 
     class Common:
         UNKNOWN_ACTION = "Unknown action provided."
+        ERR_DB_CONN = "Database connection failed"
         ERR_DB = "Database error."

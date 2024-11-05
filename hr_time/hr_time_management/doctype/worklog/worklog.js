@@ -12,7 +12,7 @@ frappe.ui.form.on('Worklog', {
             frappe.msgprint({
                 title: __('WARNING'),
                 message: __('The entered time cannot be in the future.'),
-                indicator: 'red'  // The indicator color
+                indicator: 'red'
             });
             // Prevent Worklog form submission
             frappe.validated = false;

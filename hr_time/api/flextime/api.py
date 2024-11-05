@@ -9,6 +9,7 @@ from hr_time.api.flextime.stats import FlextimeStatisticsService
 from hr_time.api.worklog.service import WorklogService
 from hr_time.api.shared.utils.frappe_utils import FrappeUtils
 from hr_time.api.shared.constants.messages import Messages
+from hr_time.api.shared.utils.response import Response
 
 
 @frappe.whitelist()
@@ -125,10 +126,7 @@ def submit_easy_checkin(action: str) -> Union[None, dict]:
         case "End of work":
             # Check if the employee has any worklogs
             if not WorklogService.prod().check_if_employee_has_worklogs_today(employee.id):
-                return {
-                    'status': 'error',
-                    'message': Messages.Checkin.FAILED_CHECKOUT_DUE_TO_NO_WORKLOGS
-                }
+                return Response.error(Messages.Checkin.FAILED_CHECKOUT_DUE_TO_NO_WORKLOGS)
             CheckinService.prod().checkin(Action.endOfWork)
         case _:
             FrappeUtils.throw_error_msg(Messages.Common.UNKNOWN_ACTION, frappe.DoesNotExistError)

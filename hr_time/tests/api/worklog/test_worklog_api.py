@@ -1,109 +1,111 @@
+import json
 import unittest
 from unittest.mock import patch
-from hr_time.api.worklog.api import has_employee_made_worklogs_today, create_worklog
-from hr_time.api.worklog.repository import Worklog, WorklogRepository
-from hr_time.api.worklog.service import WorklogService
+from hr_time.api.worklog.api import has_employee_made_worklogs_today, create_worklog_now
 from hr_time.api.shared.constants.messages import Messages
+import frappe
+from hr_time.api.shared.utils.response import Response
 
 
 class TestWorklogAPI(unittest.TestCase):
-    worklog: WorklogRepository
-    service: WorklogService
-
     def setUp(self):
-        super().setUp()
-        self.worklog = WorklogRepository()
-        self.service = WorklogService(self.worklog)
+        # Arrange
+        # Sample employeeID for testing
+        self.DUMMY_EMP_ID = '001'
+        self.DUMMY_VALID_WORKLOG_TEXT = 'Completed task A'
+        self.DUMMY_TASK = 'TASK001'
+        self.DUMMY_INVALID_WORKLOG_TEXT = ''
+        self.worklog = frappe.get_doc({
+            "doctype": "Worklog"
+        })
 
-        # Patch the get_worklogs_of_employee_on_date method multiple tests in this class
-        patcher_worklogs = patch('hr_time.api.flextime.processing.WorklogRepository.get_worklogs_of_employee_on_date')
-
-        # Start the patch
-        self.mock_get_worklogs_of_employee_on_date = patcher_worklogs.start()
-        # Mock return value for WorklogRepository.get_worklogs_of_employee_on_date
-        self.mock_get_worklogs_of_employee_on_date.return_value = [
-            Worklog("001", "2023-11-19 08:00:00", "Task A", "T001"),
-            Worklog("001", "2023-11-19 09:00:00", "Task B", "T002")
+    @patch('hr_time.api.worklog.service.WorklogService.check_if_employee_has_worklogs_today')
+    def test_has_employee_made_worklogs_today(self, mock_check_if_has_worklogs):
+        # Define test cases with the mock return values and expected results
+        test_cases = [
+            (True, True),  # (mock return value, expected result)
+            (False, False),
         ]
 
-        # Add cleanup to stop patching after the test
-        self.addCleanup(patcher_worklogs.stop)
+        for mock_return, expected in test_cases:
+            mock_check_if_has_worklogs.side_effect = lambda x: mock_return
 
-    @patch('hr_time.api.worklog.service.WorklogService')
-    def test_has_employee_made_worklogs_today_positive(self, MockWorklogService):
+            # Act
+            result = has_employee_made_worklogs_today(self.DUMMY_EMP_ID)
+
+            # Assert
+            self.assertEqual(result, expected)
+
+    @patch('hr_time.api.worklog.service.WorklogService.create_worklog_now')
+    def test_create_worklog_success(self, mock_create_worklog_now):
+        # Test for success case
         # Arrange
-        employee_id = '001'
-        # Create a mock instance of WorklogService
-        mock_service_instance = MockWorklogService.return_value
-        # Mock the return value
-        mock_service_instance.check_if_employee_has_worklogs_today.return_value = True
+        mock_create_worklog_now.side_effect = [
+            Response.success(Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+        ]
 
         # Act
-        result = has_employee_made_worklogs_today(employee_id)
+        result = create_worklog_now(self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+        result = json.loads(result)  # Parse JSON string to dictionary
 
         # Assert
-        self.assertTrue(result)
-        mock_service_instance.check_if_employee_has_worklogs_today.assert_called_once_with(employee_id)
-
-    @patch('hr_time.api.worklog.service.WorklogService')
-    def test_has_employee_made_worklogs_today_negative(self, MockWorklogService):
-        # Arrange
-        employee_id = '001'
-        # Create a mock instance of WorklogService
-        mock_service_instance = MockWorklogService.return_value
-        # Mock the return value
-        mock_service_instance.check_if_employee_has_worklogs_today.return_value = False
-
-        # Act
-        result = has_employee_made_worklogs_today(employee_id)
-
-        # Assert
-        self.assertFalse(result)
-        mock_service_instance.check_if_employee_has_worklogs_today.assert_called_once_with(employee_id)
-
-    @patch('hr_time.api.worklog.service.WorklogService')
-    def test_create_worklog_success(self, MockWorklogService):
-        # Arrange
-        employee_id = '001'
-        worklog_text = 'Completed task A'
-        task = 'TASK001'
-        mock_service_instance = MockWorklogService.return_value
-        mock_service_instance.create_worklog.return_value = {
-            'status': 'success', 'message': Messages.Worklog.SUCCESS_WORKLOG_CREATION}
-
-        # Act
-        result = create_worklog(employee_id, worklog_text, task)
-
-        # Assert
-        self.assertEqual(result['status'], 'success')
-        # Assert the message
+        self.assertEqual(result['status'], Response.STATUS_SUCCESS)
         self.assertEqual(result['message'], Messages.Worklog.SUCCESS_WORKLOG_CREATION)
-        mock_service_instance.create_worklog.assert_called_once_with(employee_id, worklog_text, task)
+        mock_create_worklog_now.assert_called_once_with(
+            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
 
     def test_create_worklog_empty_description(self):
-        # Arrange
-        employee_id = '001'
-        worklog_text = ''  # Empty Task description
-        task = 'TASK001'
-
         # Act
-        result = create_worklog(employee_id, worklog_text, task)
+        result = create_worklog_now(self.DUMMY_EMP_ID, self.DUMMY_INVALID_WORKLOG_TEXT, self.DUMMY_TASK)
+        result = json.loads(result)  # Parse JSON string to dictionary
 
         # Assert
-        self.assertEqual(result['status'], 'error')  # Expect an error status
+        self.assertEqual(result['status'], Response.STATUS_ERROR)
         self.assertEqual(result['message'], Messages.Worklog.EMPTY_TASK_DESC)   # Expect the error message
 
     @patch('hr_time.api.worklog.repository.WorklogRepository.create_worklog')
     def test_create_worklog_general_exception(self, mock_create_worklog):
         # Arrange
-        employee_id = '001'
-        worklog_text = 'Completed task B'
-        task = 'TASK002'
-        mock_create_worklog.side_effect = Exception("Database connection failed")  # Simulate a general exception
+        mock_create_worklog.side_effect = Exception(Messages.Common.ERR_DB_CONN)  # Simulate a general exception
 
         # Act
-        result = create_worklog(employee_id, worklog_text, task)
+        result = create_worklog_now(self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+        result = json.loads(result)  # Parse JSON string to dictionary
 
         # Assert
-        self.assertEqual(result['status'], 'error')  # Expect an error status
-        self.assertEqual(result['message'], "Database connection failed")   # Expect the error message
+        self.assertEqual(result['status'], Response.STATUS_ERROR)
+        self.assertEqual(result['message'], Messages.Common.ERR_DB_CONN)   # Expect the error message
+
+    @patch('hr_time.api.worklog.service.WorklogService.create_worklog_now')
+    def test_response_format_success(self, mock_create_worklog_now):
+        # Arrange
+        mock_create_worklog_now.return_value = Response.success(Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+
+        # Act
+        result = create_worklog_now(self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+        result_json = json.loads(result)  # Parse JSON string to dictionary
+
+        # Assert
+        self.assertIsInstance(result_json, dict)
+        self.assertIn('status', result_json)
+        self.assertIn('message', result_json)
+        self.assertIn('data', result_json)  # 'data' can be None
+        self.assertEqual(result_json['status'], Response.STATUS_SUCCESS)
+        self.assertEqual(result_json['message'], Messages.Worklog.SUCCESS_WORKLOG_CREATION)
+
+    @patch('hr_time.api.worklog.service.WorklogService.create_worklog_now')
+    def test_response_format_error(self, mock_create_worklog_now):
+        # Arrange
+        mock_create_worklog_now.return_value = Response.error(Messages.Worklog.ERR_CREATE_WORKLOG)
+
+        # Act
+        result = create_worklog_now(self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+        result_json = json.loads(result)  # Parse JSON string to dictionary
+
+        # Assert
+        self.assertIsInstance(result_json, dict)
+        self.assertIn('status', result_json)
+        self.assertIn('message', result_json)
+        self.assertIn('data', result_json)  # 'data' can be None
+        self.assertEqual(result_json['status'], Response.STATUS_ERROR)
+        self.assertEqual(result_json['message'], Messages.Worklog.ERR_CREATE_WORKLOG)
