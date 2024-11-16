@@ -125,9 +125,9 @@ export class EasyCheckinDialog {
       primary_action_label: __(EasyCheckinDialog.LABELS.PRIMARY_ACTION_BTN, undefined, "checkin"),
       primary_action: (values) => {
         const actionValue = values.action;
-        const worklog_text = this.dialogUI.get_value("worklog_box")
+        const worklog_text = this.dialogUI.get_value("worklog_box");
         const trimmed_worklog_text = worklog_text ? worklog_text.trim() : '';
-      
+        
         // Submit only Checkin for actions other than 'End of work' OR if 'Task Description' is empty when Checking out
         if(actionValue !== EasyCheckinDialog.ACTIONS.EOW || !trimmed_worklog_text){
           if (actionValue === EasyCheckinDialog.ACTIONS.EOW && !this.hasWorklogs) {
@@ -136,7 +136,9 @@ export class EasyCheckinDialog {
           }
           this.submitCheckin(values, employee_id);
         }else{
-          this.submitCheckinAfterAddingWorklog(values, employee_id, trimmed_worklog_text);
+          const task = this.dialogUI.get_value("task").trim();
+          const ticket_link = this.dialogUI.get_value("external_reference").trim();
+          this.submitCheckinAfterAddingWorklog(values, employee_id, trimmed_worklog_text, task, ticket_link);
         }
       }
     });
@@ -172,6 +174,23 @@ export class EasyCheckinDialog {
         fieldtype: "Text",
         placeholder: __(EasyCheckinDialog.LABELS.PLACEHOLDER_WORKLOG_TASK_DESC),
         depends_on: `eval: doc.action === '${EasyCheckinDialog.ACTIONS.EOW}'`,
+      },
+      {
+        label: "Task",
+        fieldname: "task",
+        fieldtype: "Link",
+        options: "Task",
+        reqd: false,
+        depends_on: `eval: doc.action === '${EasyCheckinDialog.ACTIONS.EOW}'`,
+      },
+      {
+        label: "External Reference",
+        fieldname: "external_reference",
+        fieldtype: "Data",
+        options: "URL", // Validate as a URL
+        placeholder: __("e.g. link to a ticket in an external system"),
+        depends_on: `eval: doc.action === '${EasyCheckinDialog.ACTIONS.EOW}'`,
+        reqd: false,
       },
       {
         fieldname: "worklog_section_link_full_form",
@@ -302,14 +321,20 @@ export class EasyCheckinDialog {
 
   /**
    * Adds a new worklog entry for the employee.
+   * @param {Object} values - Object containing values entered by the user in the dialog form.
    * @param {string} employee_id - The ID of the current employee.
-   */
-  submitCheckinAfterAddingWorklog(values, employee_id, worklog_text) {
+   * @param {string} worklog_text - The text entered in the worklog description field.
+   * @param {string} task - The ID of the task associated with the worklog.
+   * @param {string} ticket_link - The external reference URL associated with the worklog.
+  **/
+  submitCheckinAfterAddingWorklog(values, employee_id, worklog_text, task, ticket_link) {
     frappe.call({
       method: "hr_time.api.worklog.api.create_worklog_now",
       args: {
         employee_id: employee_id,
         worklog_text: worklog_text,
+        task: task,
+        ticket_link: ticket_link
       },
       callback: (response) => {
         if (response && typeof response === 'object' && response.message) {

@@ -16,6 +16,7 @@ class TestWorklogService(unittest.TestCase):
         self.DUMMY_VALID_WORKLOG_TEXT = 'Completed task A'
         self.DUMMY_INVALID_EMPTY_WORKLOG_TEXT = ''
         self.DUMMY_TASK = 'TASK001'
+        self.DUMMY_TICKET_LINK = 'https://github.com/Atlas-Neo/app/issues'
         self.worklog_repository = MagicMock(spec=WorklogRepository)
         self.worklog_service = WorklogService(self.worklog_repository)
 
@@ -48,7 +49,7 @@ class TestWorklogService(unittest.TestCase):
 
         # Act
         result = self.worklog_service.create_worklog_now(
-            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK, self.DUMMY_TICKET_LINK)
 
         # Assert
         # Verify create_worklog was called
@@ -59,7 +60,7 @@ class TestWorklogService(unittest.TestCase):
     def test_create_worklog_empty_description(self):
         # Act
         result = self.worklog_service.create_worklog_now(
-            self.DUMMY_EMP_ID, self.DUMMY_INVALID_EMPTY_WORKLOG_TEXT, self.DUMMY_TASK)
+            self.DUMMY_EMP_ID, self.DUMMY_INVALID_EMPTY_WORKLOG_TEXT, self.DUMMY_TASK, self.DUMMY_TICKET_LINK)
 
         # Assert
         self.assertEqual(result.status, Response.STATUS_ERROR)
@@ -75,7 +76,8 @@ class TestWorklogService(unittest.TestCase):
 
         # Act
         result = self.worklog_service.create_worklog_now(
-            employee_id=None, worklog_text=self.DUMMY_VALID_WORKLOG_TEXT, task=self.DUMMY_TASK)
+            employee_id=None, worklog_text=self.DUMMY_VALID_WORKLOG_TEXT,
+            task=self.DUMMY_TASK, ticket_link=self.DUMMY_TICKET_LINK)
 
         # Assert
         # Verify that get_current_employee_id was called
@@ -84,7 +86,7 @@ class TestWorklogService(unittest.TestCase):
         # Check that create_worklog on repository was called with the correct parameters
         # i.e. (Current employee ID, ANY date, worklog_text, task)
         self.worklog_repository.create_worklog.assert_called_once_with(
-            'emp123', unittest.mock.ANY, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+            'emp123', unittest.mock.ANY, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK, self.DUMMY_TICKET_LINK)
 
         # Verify the result is as expected
         self.assertEqual(result.status, Response.STATUS_SUCCESS)
@@ -96,7 +98,7 @@ class TestWorklogService(unittest.TestCase):
 
         # Act
         result = self.worklog_service.create_worklog_now(
-            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK)
+            self.DUMMY_EMP_ID, self.DUMMY_VALID_WORKLOG_TEXT, self.DUMMY_TASK, self.DUMMY_TICKET_LINK)
 
         # Assert
         self.assertEqual(result.status, Response.STATUS_ERROR)

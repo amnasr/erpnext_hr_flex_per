@@ -3,6 +3,16 @@
 
 
 frappe.ui.form.on('Worklog', {
+    refresh: function (frm) {
+        // Modify the employee field display dynamically to include full name.
+        if (frm.doc.employee) {
+            frappe.db.get_value('Employee', frm.doc.employee, 'employee_name', (r) => {
+                if (r && r.employee_name) {
+                    frm.fields_dict.employee.$wrapper.find('input').val(`${frm.doc.employee}: ${r.employee_name}`);
+                }
+            });
+        }
+    },
     validate: function(frm) {
         // Get the value of the log_time (datetime) field
         const enteredDatetime = frm.doc.log_time;

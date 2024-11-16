@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "employee",
+  "employee_name",
   "log_time",
   "task_desc",
   "amended_from",
@@ -63,11 +64,19 @@
    "fieldtype": "Data",
    "label": "External reference",
    "options": "URL"
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Employee Name",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-11-08 19:44:44.182160",
+ "modified": "2024-11-16 02:47:36.551278",
  "modified_by": "Administrator",
  "module": "HR time management",
  "name": "Worklog",
