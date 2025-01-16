@@ -1,6 +1,6 @@
 # ERPNext HR time management
 
-HR Time management module for [ERPNext](https://erpnext.com/).
+HR Flextime & Permession management module for [ERPNext](https://erpnext.com/).
 
 ![Flextime dashboard](img/flextime_dashboard.png "Flextime dashboard")
 
@@ -25,7 +25,7 @@ This module is based on [Frappe HR module](https://github.com/frappe/hrms), whic
 Install the modul as usual:
 
 ```bash
-bench get-app hr_time https://github.com/atlas-aero/erpnext_hr_time
+bench get-app hr_time https://github.com/atlas-aero/amnasr/erpnext_hr_flex_per
 ```
 
 ```bash
@@ -44,7 +44,7 @@ Per default the module ships with 40 hours monday to friday time model.
 
 #### 2. Define break times
 
-Enforced break times are defined by "break time definition doc": https://erp.test.example/app/break-time-definition
+Enforced break times are defined by "break time definition doc"
 
 The module is shipped with the mandatory break times for Germany as standard.
 
