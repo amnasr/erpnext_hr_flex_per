@@ -1,1 +1,10 @@
 [
+    {
+        "doctype": "Break Time Definition",
+        "break_name": "Lunch Break",
+        "start_time": "12:30",
+        "end_time": "13:30",
+        "country": "Egypt",
+        "only_for_minors": 0
+    }
+]
